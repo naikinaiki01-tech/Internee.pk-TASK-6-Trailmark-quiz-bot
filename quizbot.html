@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trailmark — Adaptive Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    --ink: #1c2b45;
+    --ink-soft: #46516a;
+    --parchment: #f6f1e4;
+    --parchment-raised: #fffdf7;
+    --line: #d8cfb8;
+    --moss: #3f6b4d;
+    --moss-bg: #e2ecdf;
+    --clay: #a34a2a;
+    --clay-bg: #f3ded2;
+    --gold: #b3812f;
+    --gold-bg: #f1e3c4;
+    --focus: #2f6fb0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #ece6d6;
+      --ink-soft: #b9b1a2;
+      --parchment: #131c29;
+      --parchment-raised: #1b2635;
+      --line: #33415a;
+      --moss: #8fc79f;
+      --moss-bg: #223327;
+      --clay: #e2916a;
+      --clay-bg: #3a271f;
+      --gold: #e0bb6e;
+      --gold-bg: #3a3320;
+      --focus: #7ab3e8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #ece6d6;
+    --ink-soft: #b9b1a2;
+    --parchment: #131c29;
+    --parchment-raised: #1b2635;
+    --line: #33415a;
+    --moss: #8fc79f;
+    --moss-bg: #223327;
+    --clay: #e2916a;
+    --clay-bg: #3a271f;
+    --gold: #e0bb6e;
+    --gold-bg: #3a3320;
+    --focus: #7ab3e8;
+  }
+
+  h1, h2, h3 { font-family: "Source Serif 4", Georgia, serif; margin: 0; letter-spacing: 0.01em; }
+  a { color: inherit; }
+  button { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .app {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  header.top .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  header.top .brand h1 { font-size: 1.5rem; font-weight: 600; }
+  header.top .brand span.tagline { font-size: 0.85rem; color: var(--ink-soft); }
+  .stat-strip { display: flex; gap: 18px; font-size: 0.85rem; color: var(--ink-soft); }
+  .stat-strip strong { color: var(--ink); font-weight: 600; font-size: 0.95rem; }
+
+  /* ---------- Subject select ---------- */
+  #screen-select p.lede {
+    max-width: 60ch;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    font-size: 1.02rem;
+  }
+  .subject-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .subject-card {
+    text-align: left;
+    background: var(--parchment-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    cursor: pointer;
+    color: var(--ink);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .subject-card:hover { border-color: var(--ink-soft); transform: translateY(-2px); }
+  .subject-card h3 { font-size: 1.1rem; margin-bottom: 6px; }
+  .subject-card .topics { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 10px; }
+  .subject-card .best { font-size: 0.78rem; color: var(--gold); }
+
+  /* ---------- Quiz layout ---------- */
+  #screen-quiz { display: none; gap: 28px; }
+  .quiz-layout {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 680px) {
+    .quiz-layout { grid-template-columns: 1fr; }
+    .path-rail { order: -1; }
+  }
+
+  .path-rail {
+    background: var(--parchment-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 10px;
+    position: sticky;
+    top: 16px;
+  }
+  .path-rail .rail-label {
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .path-rail svg { display: block; width: 100%; height: auto; }
+
+  .quiz-card {
+    background: var(--parchment-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 26px;
+  }
+  .quiz-card .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+  .tier-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+  .tier-badge.tier-0 { background: var(--moss-bg); color: var(--moss); }
+  .tier-badge.tier-1 { background: var(--gold-bg); color: var(--gold); }
+  .tier-badge.tier-2 { background: var(--clay-bg); color: var(--clay); }
+
+  .quiz-card h2.question { font-size: 1.3rem; font-weight: 600; margin-bottom: 20px; max-width: 55ch; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+  .option {
+    text-align: left;
+    padding: 13px 16px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 5px;
+    font-size: 0.98rem;
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .option:hover:not(:disabled) { border-color: var(--ink-soft); }
+  .option:disabled { cursor: default; }
+  .option.correct { background: var(--moss-bg); border-color: var(--moss); color: var(--moss); }
+  .option.incorrect { background: var(--clay-bg); border-color: var(--clay); color: var(--clay); }
+  .option.faded { opacity: 0.55; }
+
+  .feedback {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    display: none;
+  }
+  .feedback.show { display: block; }
+  .feedback.correct { background: var(--moss-bg); color: var(--moss); }
+  .feedback.incorrect { background: var(--clay-bg); color: var(--clay); }
+  .feedback .explain { color: var(--ink); opacity: 0.85; display: block; margin-top: 4px; }
+
+  .quiz-actions { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .btn {
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--parchment);
+    font-size: 0.92rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+
+  /* ---------- Summary ---------- */
+  #screen-summary { display: none; }
+  .summary-head { margin-bottom: 22px; }
+  .summary-head h2 { font-size: 1.7rem; margin-bottom: 6px; }
+  .summary-head p { color: var(--ink-soft); max-width: 55ch; }
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .summary-stats .stat {
+    background: var(--parchment-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .summary-stats .stat .num { font-family: "Source Serif 4", serif; font-size: 1.8rem; font-weight: 600; display: block; }
+  .summary-stats .stat .label { font-size: 0.78rem; color: var(--ink-soft); }
+
+  .topic-breakdown { margin-bottom: 26px; }
+  .topic-breakdown h3 { font-size: 1rem; margin-bottom: 12px; }
+  .topic-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  .topic-row .tname { width: 150px; flex-shrink: 0; }
+  .topic-row .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .topic-row .bar-fill { height: 100%; background: var(--moss); }
+  .topic-row .bar-fill.weak { background: var(--clay); }
+  .topic-row .pct { width: 42px; text-align: right; color: var(--ink-soft); }
+
+  .recommendation {
+    background: var(--gold-bg);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+    margin-bottom: 24px;
+  }
+  .recommendation strong { color: var(--gold); }
+
+  .summary-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  footer.note {
+    margin-top: 40px;
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .subject-card { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Trailmark</h1>
+      <span class="tagline">an adaptive quiz that finds your level</span>
+    </div>
+    <div class="stat-strip" id="header-stats" style="display:none;">
+      <span>Score <strong id="stat-score">0</strong></span>
+      <span>Streak <strong id="stat-streak">0</strong></span>
+      <span>Question <strong id="stat-progress">1 / 10</strong></span>
+    </div>
+  </header>
+
+  <!-- ---------------- SUBJECT SELECT ---------------- -->
+  <section id="screen-select">
+    <p class="lede">Pick a subject. Each round is ten questions. Answer well and the questions get harder; struggle and they ease off, so the level you land on says something real about where you stand.</p>
+    <div class="subject-grid" id="subject-grid"></div>
+  </section>
+
+  <!-- ---------------- QUIZ ---------------- -->
+  <section id="screen-quiz">
+    <div class="quiz-layout">
+      <aside class="path-rail" aria-hidden="false">
+        <div class="rail-label">Your trail</div>
+        <svg id="path-svg" viewBox="0 0 140 320" xmlns="http://www.w3.org/2000/svg"></svg>
+      </aside>
+
+      <div class="quiz-card">
+        <div class="meta-row">
+          <span id="topic-label">Topic</span>
+          <span class="tier-badge" id="tier-badge">Level 1</span>
+        </div>
+        <h2 class="question" id="question-text">Question text</h2>
+        <div class="options" id="options-list"></div>
+        <div class="feedback" id="feedback-box" role="status">
+          <span id="feedback-verdict"></span>
+          <span class="explain" id="feedback-explain"></span>
+        </div>
+        <div class="quiz-actions">
+          <button class="btn" id="next-btn" disabled>Next question</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------- SUMMARY ---------------- -->
+  <section id="screen-summary">
+    <div class="summary-head">
+      <h2 id="summary-title">Round complete</h2>
+      <p id="summary-sub"></p>
+    </div>
+    <div class="summary-stats" id="summary-stats"></div>
+    <div class="topic-breakdown">
+      <h3>By topic</h3>
+      <div id="topic-rows"></div>
+    </div>
+    <div class="recommendation" id="recommendation"></div>
+    <div class="summary-actions">
+      <button class="btn" id="retry-btn">Try this subject again</button>
+      <button class="btn ghost" id="choose-btn">Choose another subject</button>
+    </div>
+  </section>
+
+  <footer class="note">Progress and best scores are kept on this device only.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------
+  // Question bank: three difficulty tiers (0 easy, 1 medium, 2 hard)
+  // per subject, each question tagged with a sub-topic for the
+  // per-topic breakdown at the end.
+  // ---------------------------------------------------------------
+  var BANK = {
+    dsa: {
+      name: "Data Structures & Algorithms",
+      topics: ["Stacks", "Queues", "Linked Lists"],
+      questions: [
+        {tier:0, topic:"Stacks", q:"Which data structure follows LIFO (last in, first out) order?", options:["Stack","Queue","Array","Tree"], correct:0, explain:"A stack only lets you add or remove from the same end, the top — the last item pushed is the first one popped."},
+        {tier:0, topic:"Queues", q:"In a queue, from which end are elements removed?", options:["The rear","The front","The middle","Wherever is shortest"], correct:1, explain:"Queues are FIFO: items leave from the front, the same order they arrived in."},
+        {tier:0, topic:"Linked Lists", q:"Besides its data, what does a singly linked list node store?", options:["An index into an array","A pointer to the next node","Pointers to both neighbors","A pointer to the head"], correct:1, explain:"Each node points forward to the next one; that chain is what makes it a list without contiguous memory."},
+        {tier:1, topic:"Stacks", q:"Pushing onto a stack backed by an array (with room to spare) runs in:", options:["O(n)","O(log n)","O(1)","O(n²)"], correct:2, explain:"Writing to the next free slot and bumping the top pointer takes constant time, regardless of stack size."},
+        {tier:1, topic:"Queues", q:"Which everyday situation best models a queue?", options:["Undo history in an editor","People waiting in line at a counter","A call stack during recursion","Browser back-button history"], correct:1, explain:"First person in line is served first — first in, first out, exactly like a queue."},
+        {tier:1, topic:"Linked Lists", q:"To delete a specific (non-head) node from a singly linked list, you first need to find:", options:["The tail node","The list's length","The previous node","The node's memory address"], correct:2, explain:"You have to re-point the previous node's next pointer, so you need a reference to it — found by walking from the head."},
+        {tier:2, topic:"Stacks", q:"Evaluating a postfix (reverse Polish) expression is naturally done with:", options:["A queue","A stack","Recursion alone, no data structure","A hash table"], correct:1, explain:"Operands are pushed as they're read; each operator pops its operands, computes, and pushes the result back."},
+        {tier:2, topic:"Queues", q:"A print spooler that serves jobs in the order they arrived is best modeled as a:", options:["Stack","Binary tree","Queue","Hash table"], correct:2, explain:"Jobs need to be handled in arrival order — first in, first out — which is exactly what a queue guarantees."},
+        {tier:2, topic:"Linked Lists", q:"Reversing a singly linked list iteratively means tracking, at each step:", options:["Only the current node","Previous, current, and next node","Head and tail only","Only the next node"], correct:1, explain:"You need 'previous' to re-point the current node backward, and 'next' saved before you overwrite the link."}
+      ]
+    },
+    networks: {
+      name: "Computer Networks",
+      topics: ["OSI Model", "IP Addressing", "Routing"],
+      questions: [
+        {tier:0, topic:"OSI Model", q:"How many layers does the OSI model have?", options:["5","6","7","8"], correct:2, explain:"From Physical up to Application, the OSI reference model defines seven layers."},
+        {tier:0, topic:"IP Addressing", q:"Which address identifies a device at the network layer?", options:["MAC address","IP address","Port number","DNS name"], correct:1, explain:"MAC addresses work at the data link layer; IP addresses are the network-layer identifier used for routing."},
+        {tier:0, topic:"Routing", q:"What does routing primarily do?", options:["Encrypts data in transit","Directs packets between networks", "Assigns IP addresses automatically","Compresses data for transfer"], correct:1, explain:"Routers use routing tables to decide the next hop for a packet heading to another network."},
+        {tier:1, topic:"OSI Model", q:"At which OSI layer does a router primarily operate?", options:["Data link layer","Network layer","Transport layer","Application layer"], correct:1, explain:"Routers make forwarding decisions based on network-layer (IP) addresses, so that's their home layer."},
+        {tier:1, topic:"IP Addressing", q:"In IPv4, a subnet mask is used to:", options:["Encrypt the IP address","Separate the network and host portions of an address","Assign MAC addresses","Set the physical cable topology"], correct:1, explain:"The mask tells devices which bits identify the network and which bits identify the host within it."},
+        {tier:1, topic:"Routing", q:"Which approach updates routes automatically as the network changes?", options:["Static routing","Dynamic routing","Manual routing","Default routing only"], correct:1, explain:"Dynamic routing protocols exchange information between routers and recompute paths when the topology shifts."},
+        {tier:2, topic:"OSI Model", q:"Which OSI layer establishes, maintains, and tears down sessions between applications?", options:["Presentation layer","Network layer","Session layer","Transport layer"], correct:2, explain:"That coordination job — opening and closing a conversation between two endpoints — belongs to the session layer."},
+        {tier:2, topic:"IP Addressing", q:"How many usable host addresses does a /26 subnet provide?", options:["30","62","64","126"], correct:1, explain:"A /26 gives 64 total addresses; subtract the network and broadcast addresses and 62 remain usable."},
+        {tier:2, topic:"Routing", q:"RIP's 15-hop limit mainly exists to:", options:["Increase available bandwidth","Prevent routing loops from persisting","Encrypt routed traffic","Balance load across servers"], correct:1, explain:"Capping the hop count keeps a routing loop from counting to infinity — it's declared unreachable instead."}
+      ]
+    },
+    math: {
+      name: "Mathematics",
+      topics: ["Algebra", "Geometry", "Probability"],
+      questions: [
+        {tier:0, topic:"Algebra", q:"Solve for x: x + 5 = 12", options:["7","5","17","2"], correct:0, explain:"Subtract 5 from both sides: x = 12 − 5 = 7."},
+        {tier:0, topic:"Geometry", q:"What do the interior angles of a triangle add up to?", options:["90°","180°","270°","360°"], correct:1, explain:"This holds for any triangle on a flat plane: the three interior angles always sum to 180°."},
+        {tier:0, topic:"Probability", q:"What is the probability of flipping heads on a fair coin?", options:["1/3","1","1/2","0"], correct:2, explain:"Two equally likely outcomes, one of them heads, gives a probability of 1/2."},
+        {tier:1, topic:"Algebra", q:"Solve: 2x − 3 = 11", options:["x = 4","x = 5.5","x = 7","x = 8"], correct:2, explain:"Add 3 to get 2x = 14, then divide by 2: x = 7."},
+        {tier:1, topic:"Geometry", q:"What is the area of a circle with radius 4?", options:["8π","4π","16π","32π"], correct:2, explain:"Area = πr², and 4² is 16, so the area is 16π."},
+        {tier:1, topic:"Probability", q:"Two dice are rolled. What's the probability their sum is 7?", options:["1/36","1/12","1/4","1/6"], correct:3, explain:"Six of the 36 equally likely outcomes sum to 7, and 6/36 reduces to 1/6."},
+        {tier:2, topic:"Algebra", q:"Factor: x² − 5x + 6", options:["(x−1)(x−6)","(x−2)(x−3)","(x+2)(x+3)","(x−6)(x+1)"], correct:1, explain:"−2 and −3 multiply to 6 and add to −5, so it factors as (x−2)(x−3)."},
+        {tier:2, topic:"Geometry", q:"A cone has radius 3 and height 4. What is its volume?", options:["9π","12π","36π","48π"], correct:1, explain:"Volume = ⅓πr²h = ⅓ × π × 9 × 4 = 12π."},
+        {tier:2, topic:"Probability", q:"A bag has 5 red and 3 blue balls. Two are drawn without replacement. What's the probability both are red?", options:["3/28","5/8","25/64","5/14"], correct:3, explain:"P = (5/8) × (4/7) = 20/56, which simplifies to 5/14."}
+      ]
+    },
+    science: {
+      name: "General Science",
+      topics: ["Biology", "Chemistry", "Physics"],
+      questions: [
+        {tier:0, topic:"Biology", q:"What gas do plants mainly absorb for photosynthesis?", options:["Oxygen","Carbon dioxide","Nitrogen","Hydrogen"], correct:1, explain:"Plants take in CO₂ and, using light energy, convert it into sugars, releasing oxygen as a byproduct."},
+        {tier:0, topic:"Chemistry", q:"What is the chemical formula for water?", options:["CO2","H2O","O2","NaCl"], correct:1, explain:"Water is two hydrogen atoms bonded to one oxygen atom: H2O."},
+        {tier:0, topic:"Physics", q:"What force pulls objects toward the Earth?", options:["Friction","Magnetism","Gravity","Tension"], correct:2, explain:"Gravity is the attractive force between masses, and Earth's mass pulls objects toward its center."},
+        {tier:1, topic:"Biology", q:"Which organelle is known as the powerhouse of the cell?", options:["Nucleus","Mitochondria","Ribosome","Golgi apparatus"], correct:1, explain:"Mitochondria generate most of the cell's ATP through cellular respiration."},
+        {tier:1, topic:"Chemistry", q:"Which type of bond forms when atoms share electron pairs?", options:["Ionic bond","Covalent bond","Metallic bond","Van der Waals bond"], correct:1, explain:"Covalent bonds involve atoms sharing electrons, unlike ionic bonds where electrons transfer outright."},
+        {tier:1, topic:"Physics", q:"Newton's second law says force equals mass times what?", options:["Velocity","Distance","Acceleration","Time"], correct:2, explain:"F = ma — force equals mass multiplied by acceleration."},
+        {tier:2, topic:"Biology", q:"Which process creates genetic variation by exchanging segments between homologous chromosomes?", options:["Mitosis","Crossing over","Binary fission","Translation"], correct:1, explain:"Crossing over during meiosis swaps chromosome segments, mixing genetic material between the pair."},
+        {tier:2, topic:"Chemistry", q:"What is the pH of a neutral solution at 25°C?", options:["0","1","7","14"], correct:2, explain:"Pure water sits at pH 7 at 25°C — the midpoint between acidic and basic."},
+        {tier:2, topic:"Physics", q:"A car accelerates from rest at 2 m/s² for 5 seconds. How far does it travel?", options:["10 m","20 m","25 m","50 m"], correct:2, explain:"Distance = ½at² = ½ × 2 × 25 = 25 meters."}
+      ]
+    }
+  };
+
+  var ROUND_LENGTH = 10;
+  var TIER_LABELS = ["Level 1 · warm-up", "Level 2 · steady", "Level 3 · sharp"];
+
+  // ---------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------
+  var state = null;
+
+  function loadBest(subjectKey) {
+    try {
+      var raw = localStorage.getItem("trailmark:best:" + subjectKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function saveBest(subjectKey, score) {
+    try {
+      var current = loadBest(subjectKey);
+      if (!current || score > current.score) {
+        localStorage.setItem("trailmark:best:" + subjectKey, JSON.stringify({score: score}));
+      }
+    } catch (e) { /* storage unavailable — quietly skip */ }
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function renderSubjectGrid() {
+    var grid = el("subject-grid");
+    grid.innerHTML = "";
+    Object.keys(BANK).forEach(function(key) {
+      var subj = BANK[key];
+      var best = loadBest(key);
+      var card = document.createElement("button");
+      card.className = "subject-card";
+      card.innerHTML =
+        "<h3>" + subj.name + "</h3>" +
+        "<div class='topics'>" + subj.topics.join(" · ") + "</div>" +
+        "<div class='best'>" + (best ? "Best score: " + best.score : "Not attempted yet") + "</div>";
+      card.addEventListener("click", function() { startRound(key); });
+      grid.appendChild(card);
+    });
+  }
+
+  function pickRound(subjectKey) {
+    var pool = BANK[subjectKey].questions.slice();
+    // shuffle
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    return pool;
+  }
+
+  function startRound(subjectKey) {
+    state = {
+      subjectKey: subjectKey,
+      pool: pickRound(subjectKey),
+      usedIds: [],
+      currentTier: 0,
+      score: 0,
+      streak: 0,
+      qIndex: 0,
+      history: [], // {tier, topic, correct}
+      currentQuestion: null,
+      answered: false
+    };
+    el("screen-select").style.display = "none";
+    el("screen-summary").style.display = "none";
+    el("screen-quiz").style.display = "block";
+    el("header-stats").style.display = "flex";
+    nextQuestion();
+  }
+
+  function findQuestionForTier(tier) {
+    var pool = state.pool;
+    var candidates = pool.filter(function(q, idx) {
+      return q.tier === tier && state.usedIds.indexOf(idx) === -1;
+    }).map(function(q, i) { return pool.indexOf(q); });
+    // dedupe indices properly
+    candidates = [];
+    for (var i = 0; i < pool.length; i++) {
+      if (pool[i].tier === tier && state.usedIds.indexOf(i) === -1) candidates.push(i);
+    }
+    if (candidates.length === 0) {
+      // widen search to any unused tier, closest first
+      var order = [tier, tier - 1, tier + 1, tier - 2, tier + 2];
+      for (var o = 0; o < order.length; o++) {
+        var t = order[o];
+        if (t < 0 || t > 2) continue;
+        for (var i2 = 0; i2 < pool.length; i2++) {
+          if (pool[i2].tier === t && state.usedIds.indexOf(i2) === -1) { candidates.push(i2); }
+        }
+        if (candidates.length) break;
+      }
+    }
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function nextQuestion() {
+    if (state.qIndex >= ROUND_LENGTH) { return showSummary(); }
+    var idx = findQuestionForTier(state.currentTier);
+    if (idx === null) return showSummary();
+    state.usedIds.push(idx);
+    state.currentQuestion = BANK[state.subjectKey].questions[idx];
+    state.answered = false;
+    renderQuestion();
+    renderPath();
+    updateHeaderStats();
+  }
+
+  function renderQuestion() {
+    var q = state.currentQuestion;
+    el("topic-label").textContent = q.topic;
+    var badge = el("tier-badge");
+    badge.textContent = TIER_LABELS[q.tier];
+    badge.className = "tier-badge tier-" + q.tier;
+    el("question-text").textContent = q.q;
+
+    var list = el("options-list");
+    list.innerHTML = "";
+    q.options.forEach(function(optText, i) {
+      var b = document.createElement("button");
+      b.className = "option";
+      b.textContent = optText;
+      b.addEventListener("click", function() { selectAnswer(i); });
+      list.appendChild(b);
+    });
+
+    el("feedback-box").className = "feedback";
+    el("feedback-verdict").textContent = "";
+    el("feedback-explain").textContent = "";
+    el("next-btn").disabled = true;
+  }
+
+  function selectAnswer(choiceIndex) {
+    if (state.answered) return;
+    state.answered = true;
+    var q = state.currentQuestion;
+    var isCorrect = choiceIndex === q.correct;
+    var buttons = el("options-list").querySelectorAll(".option");
+    buttons.forEach(function(btn, i) {
+      btn.disabled = true;
+      if (i === q.correct) btn.classList.add("correct");
+      else if (i === choiceIndex) btn.classList.add("incorrect");
+      else btn.classList.add("faded");
+    });
+
+    if (isCorrect) {
+      state.streak += 1;
+      var base = (q.tier + 1) * 10;
+      var streakBonus = state.streak >= 2 ? (state.streak - 1) * 5 : 0;
+      state.score += base + streakBonus;
+      state.currentTier = Math.min(2, state.currentTier + 1);
+    } else {
+      state.streak = 0;
+      state.currentTier = Math.max(0, state.currentTier - 1);
+    }
+
+    state.history.push({tier: q.tier, topic: q.topic, correct: isCorrect});
+
+    var fb = el("feedback-box");
+    fb.className = "feedback show " + (isCorrect ? "correct" : "incorrect");
+    el("feedback-verdict").textContent = isCorrect ? "Correct." : "Not quite.";
+    el("feedback-explain").textContent = q.explain;
+
+    el("next-btn").disabled = false;
+    updateHeaderStats();
+    renderPath();
+  }
+
+  function updateHeaderStats() {
+    el("stat-score").textContent = state.score;
+    el("stat-streak").textContent = state.streak;
+    el("stat-progress").textContent = (state.qIndex + 1) + " / " + ROUND_LENGTH;
+  }
+
+  // Draw the trail: one node per question slot, y-position reflects
+  // difficulty tier at that point, color reflects correct/incorrect
+  // once answered, hollow + dim for questions not yet reached.
+  function renderPath() {
+    var svg = el("path-svg");
+    var W = 140, H = 320;
+    var padY = 24;
+    var usableH = H - padY * 2;
+    var stepY = usableH / 2; // 3 tiers: 0,1,2
+    var n = ROUND_LENGTH;
+    var stepX = 0; // vertical rail, so x is fixed per column, nodes stacked by index vertically instead
+    var rowH = (H - padY * 2) / (n - 1);
+
+    var tierColor = ["var(--moss)", "var(--gold)", "var(--clay)"];
+    var pts = [];
+    var parts = [];
+
+    for (var i = 0; i < n; i++) {
+      var tier;
+      var known = i < state.history.length;
+      var isCurrent = i === state.history.length && i === state.qIndex;
+      if (known) tier = state.history[i].tier;
+      else if (isCurrent) tier = state.currentQuestion ? state.currentQuestion.tier : state.currentTier;
+      else tier = null;
+
+      var y = padY + i * rowH;
+      var x = 70 + (tier === null ? 0 : (1 - tier) * 34); // tier 0 -> right, tier 2 -> left, gentle zig
+      pts.push({x:x, y:y});
+    }
+
+    // path line through known/current points
+    var lineD = "";
+    for (var p = 0; p < pts.length; p++) {
+      lineD += (p === 0 ? "M" : "L") + pts[p].x.toFixed(1) + "," + pts[p].y.toFixed(1) + " ";
+    }
+    parts.push('<path d="' + lineD + '" fill="none" stroke="var(--line)" stroke-width="2" />');
+
+    for (var k = 0; k < n; k++) {
+      var known2 = k < state.history.length;
+      var isCurrent2 = k === state.history.length;
+      var r = isCurrent2 ? 7 : 5;
+      var fill, stroke;
+      if (known2) {
+        var h = state.history[k];
+        fill = h.correct ? "var(--moss)" : "var(--clay)";
+        stroke = fill;
+      } else if (isCurrent2) {
+        fill = "var(--parchment-raised)";
+        stroke = "var(--ink)";
+      } else {
+        fill = "var(--parchment-raised)";
+        stroke = "var(--line)";
+      }
+      parts.push('<circle cx="' + pts[k].x.toFixed(1) + '" cy="' + pts[k].y.toFixed(1) + '" r="' + r + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2" />');
+      if (known2) {
+        var mark = state.history[k].correct ? "✓" : "✕";
+        parts.push('<text x="' + (pts[k].x + 12).toFixed(1) + '" y="' + (pts[k].y + 4).toFixed(1) + '" font-size="10" fill="var(--ink-soft)" font-family="IBM Plex Sans, sans-serif">' + mark + '</text>');
+      }
+    }
+
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.innerHTML = parts.join("");
+  }
+
+  function showSummary() {
+    el("screen-quiz").style.display = "none";
+    el("header-stats").style.display = "none";
+    el("screen-summary").style.display = "block";
+
+    var subj = BANK[state.subjectKey];
+    var total = state.history.length;
+    var correctCount = state.history.filter(function(h){return h.correct;}).length;
+    var accuracy = total ? Math.round((correctCount / total) * 100) : 0;
+    var highestTier = state.history.reduce(function(m,h){return Math.max(m, h.tier);}, 0);
+
+    saveBest(state.subjectKey, state.score);
+
+    el("summary-title").textContent = subj.name + " — round complete";
+    el("summary-sub").textContent = "You answered " + total + " questions, reaching " + TIER_LABELS[highestTier].split(" · ")[0].toLowerCase() + " at your peak.";
+
+    el("summary-stats").innerHTML =
+      "<div class='stat'><span class='num'>" + state.score + "</span><span class='label'>Points</span></div>" +
+      "<div class='stat'><span class='num'>" + accuracy + "%</span><span class='label'>Accuracy</span></div>" +
+      "<div class='stat'><span class='num'>" + correctCount + "/" + total + "</span><span class='label'>Correct</span></div>" +
+      "<div class='stat'><span class='num'>" + (highestTier+1) + "</span><span class='label'>Highest level reached</span></div>";
+
+    // per-topic breakdown
+    var byTopic = {};
+    subj.topics.forEach(function(t){ byTopic[t] = {correct:0, total:0}; });
+    state.history.forEach(function(h) {
+      if (!byTopic[h.topic]) byTopic[h.topic] = {correct:0, total:0};
+      byTopic[h.topic].total += 1;
+      if (h.correct) byTopic[h.topic].correct += 1;
+    });
+
+    var rows = "";
+    var weakTopics = [];
+    Object.keys(byTopic).forEach(function(t) {
+      var d = byTopic[t];
+      if (d.total === 0) return;
+      var pct = Math.round((d.correct / d.total) * 100);
+      if (pct < 60) weakTopics.push(t);
+      rows += "<div class='topic-row'>" +
+        "<span class='tname'>" + t + "</span>" +
+        "<span class='bar-track'><span class='bar-fill" + (pct < 60 ? " weak" : "") + "' style='width:" + pct + "%'></span></span>" +
+        "<span class='pct'>" + pct + "%</span></div>";
+    });
+    el("topic-rows").innerHTML = rows || "<p style='color:var(--ink-soft); font-size:0.9rem;'>Not enough questions on any one topic yet to break this down.</p>";
+
+    var rec;
+    if (weakTopics.length === 0 && accuracy >= 80) {
+      rec = "Strong round across the board. Try the same subject again to push into the harder tier, or move on to a new one.";
+    } else if (weakTopics.length > 0) {
+      rec = "Worth another look: <strong>" + weakTopics.join(", ") + "</strong>. Those are where the round pulled you back to easier questions.";
+    } else {
+      rec = "A solid, steady round. Another attempt at " + subj.name + " should push your peak level higher.";
+    }
+    el("recommendation").innerHTML = rec;
+  }
+
+  el("next-btn").addEventListener("click", function() {
+    state.qIndex += 1;
+    nextQuestion();
+  });
+  el("retry-btn").addEventListener("click", function() {
+    startRound(state.subjectKey);
+  });
+  el("choose-btn").addEventListener("click", function() {
+    el("screen-summary").style.display = "none";
+    el("screen-select").style.display = "block";
+    renderSubjectGrid();
+  });
+
+  renderSubjectGrid();
+})();
+</script>
+</body>
+</html>
